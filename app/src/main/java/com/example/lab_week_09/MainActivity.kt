@@ -38,6 +38,10 @@ import androidx.room.util.copy
 import com.example.lab_week_09.ui.theme.OnBackgroundItemText
 import com.example.lab_week_09.ui.theme.OnBackgroundTitleText
 import com.example.lab_week_09.ui.theme.PrimaryTextButton
+import com.squareup.moshi.JsonAdapter
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.Types
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -76,17 +80,36 @@ fun Home(
     )}
 
     var inputField = remember { mutableStateOf(Student("")) }
+
+    // DIUBAH: Siapkan Moshi dan Adapter
+    // Kita gunakan 'remember' agar objek ini tidak dibuat ulang
+    // di setiap recomposition
+    val moshi = remember { Moshi.Builder().add(KotlinJsonAdapterFactory()).build() }
+    val listType = remember { Types.newParameterizedType(List::class.java, Student::class.java) }
+    val adapter: JsonAdapter<List<Student>> = remember { moshi.adapter(listType) }
+
+
     HomeContent(
         listData,
-        inputField = inputField.value,
-        { inputString -> inputField.value = inputField.value.copy(name = inputString) },
+        inputField.value, // Kirim .value-nya
+        { input -> inputField.value = inputField.value.copy(name = input) },
         {
-            if(inputField.value.name.isNotEmpty()){
+            if (inputField.value.name.isNotBlank()) {
                 listData.add(inputField.value.copy())
                 inputField.value = Student("")
             }
         },
-        { navigateFromHomeToResult(listData.toList().toString()) }
+        // DIUBAH: Konversi list ke JSON saat navigasi
+        {
+            // 1. Ambil snapshot list saat ini
+            val currentList = listData.toList()
+
+            // 2. Konversi ke string JSON
+            val jsonString = adapter.toJson(currentList)
+
+            // 3. Kirim JSON string ke fungsi navigasi
+            navigateFromHomeToResult(jsonString)
+        }
     )
 }
 
@@ -176,15 +199,51 @@ fun App(navController: NavHostController) {
 }
 
 @Composable
-fun ResultContent(listData: String) {
-    Column(
-        modifier = Modifier
-            .padding(vertical = 4.dp)
-            .fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        //Here, we call the OnBackgroundItemText UI Element
-        OnBackgroundItemText(text = listData)
+fun ResultContent(listData: String) { // 'listData' sekarang adalah String JSON
+
+    // DIUBAH: Siapkan Moshi dan Adapter (sama seperti di Home)
+    val moshi = remember { Moshi.Builder().add(KotlinJsonAdapterFactory()).build() }
+    val listType = remember { Types.newParameterizedType(List::class.java, Student::class.java) }
+    val adapter: JsonAdapter<List<Student>> = remember { moshi.adapter(listType) }
+
+    // DIUBAH: Parse JSON kembali menjadi List<Student>
+    // Kita 'remember' hasil parse, dan hanya parse ulang jika string JSON-nya berubah
+    val studentList = remember(listData) {
+        try {
+            // Coba parse JSON. Ini bisa gagal jika string-nya rusak
+            adapter.fromJson(listData)
+        } catch (e: Exception) {
+            // Jika gagal, kembalikan list kosong
+            null
+        }
+    }
+
+    // DIUBAH: Tampilkan hasilnya menggunakan LazyColumn
+    if (studentList != null) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            item {
+                OnBackgroundTitleText(text = "Result List (from JSON)")
+            }
+            items(studentList) { student ->
+                // Tampilkan setiap item list
+                OnBackgroundItemText(text = student.name)
+            }
+        }
+    } else {
+        // Tampilkan pesan error jika JSON tidak bisa di-parse
+        Column(
+            modifier = Modifier
+                .padding(vertical = 4.dp)
+                .fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            OnBackgroundItemText(text = "Error: Could not parse list data.")
+        }
     }
 }
 
