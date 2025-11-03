@@ -81,17 +81,16 @@ fun Home(
         inputField = inputField.value,
         { inputString -> inputField.value = inputField.value.copy(name = inputString) },
         {
-            listData.add(inputField.value.copy())
-            inputField.value = Student("")
+            if(inputField.value.name.isNotEmpty()){
+                listData.add(inputField.value.copy())
+                inputField.value = Student("")
+            }
         },
         { navigateFromHomeToResult(listData.toList().toString()) }
     )
 }
 
-//if(inputField.value.name.isNotEmpty()){
-//    listData.add(inputField.value.copy())
-//    inputField.value = Student("")
-//}
+
 
 @Composable
 fun HomeContent(
