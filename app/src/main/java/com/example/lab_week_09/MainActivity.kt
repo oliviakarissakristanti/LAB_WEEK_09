@@ -28,6 +28,13 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.navigation.NavHostController
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import androidx.room.util.copy
 import com.example.lab_week_09.ui.theme.OnBackgroundItemText
 import com.example.lab_week_09.ui.theme.OnBackgroundTitleText
 import com.example.lab_week_09.ui.theme.PrimaryTextButton
@@ -41,9 +48,10 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val list = listOf("Tanu", "Tina", "Tono")
-                    //Here, we call the Home composable
-                    Home()
+                    val navController = rememberNavController()
+                    App(
+                        navController = navController
+                    )
                 }
             }
         }
@@ -58,7 +66,9 @@ data class Student(
 //@Preview(showBackground = true)
 
 @Composable
-fun Home() {
+fun Home(
+    navigateFromHomeToResult: (String) -> Unit
+) {
     val listData = remember { mutableStateListOf(
         Student("Tanu"),
         Student("Tina"),
@@ -68,23 +78,28 @@ fun Home() {
     var inputField = remember { mutableStateOf(Student("")) }
     HomeContent(
         listData,
-        inputField.value,
-        { input -> inputField.value = inputField.value.copy(input) },
+        inputField = inputField.value,
+        { inputString -> inputField.value = inputField.value.copy(name = inputString) },
         {
-            if (inputField.value.name.isNotBlank()) {
-                listData.add(inputField.value)
-                inputField.value = Student("")
-            }
-        }
+            listData.add(inputField.value.copy())
+            inputField.value = Student("")
+        },
+        { navigateFromHomeToResult(listData.toList().toString()) }
     )
 }
+
+//if(inputField.value.name.isNotEmpty()){
+//    listData.add(inputField.value.copy())
+//    inputField.value = Student("")
+//}
 
 @Composable
 fun HomeContent(
     listData: SnapshotStateList<Student>,
     inputField: Student,
     onInputValueChange: (String) -> Unit,
-    onButtonClick: () -> Unit
+    onButtonClick: () -> Unit,
+    navigateFromHomeToResult: () -> Unit
 ) {
     LazyColumn {
         item {
@@ -115,6 +130,10 @@ fun HomeContent(
                 ) {
                     onButtonClick()
                 }
+                PrimaryTextButton(text = stringResource(id =
+                    R.string.button_navigate)) {
+                    navigateFromHomeToResult()
+                }
             }
         }
 
@@ -126,6 +145,47 @@ fun HomeContent(
                 OnBackgroundItemText(text = item.name)
             }
         }
+    }
+}
+
+@Composable
+fun App(navController: NavHostController) {
+    //Here, we use NavHost to create a navigation graph
+    //We pass the navController as a parameter
+    //We also set the startDestination to "home"
+    //This means that the app will start with the Home composable
+    NavHost(
+        navController = navController,
+        startDestination = "home"
+    ) {
+        composable("home") {
+            Home { navController.navigate(
+                "resultContent/?listData=$it")
+            }
+        }
+        composable(
+            "resultContent/?listData={listData}",
+            arguments = listOf(navArgument("listData") {
+                type = NavType.StringType }
+            )
+        ) {
+            ResultContent(
+                it.arguments?.getString("listData").orEmpty()
+            )
+        }
+    }
+}
+
+@Composable
+fun ResultContent(listData: String) {
+    Column(
+        modifier = Modifier
+            .padding(vertical = 4.dp)
+            .fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        //Here, we call the OnBackgroundItemText UI Element
+        OnBackgroundItemText(text = listData)
     }
 }
 
