@@ -34,7 +34,9 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-
+                    val list = listOf("Tanu", "Tina", "Tono")
+                    //Here, we call the Home composable
+                    Home(list)
                 }
             }
         }
